@@ -65,7 +65,7 @@ def q_fixed_point(weight_sigma, bias_sigma, nonlinearity, max_iter=500, tol=1e-9
     """Compute fixed point of q map"""
     q = qinit
     qs = []
-    for i in xrange(max_iter):
+    for i in range(max_iter):
         qnew = qmap(q, weight_sigma, bias_sigma, nonlinearity, fast=fast)
         err = np.abs(qnew - q)
         qs.append(q)
