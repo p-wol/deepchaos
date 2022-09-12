@@ -1,9 +1,11 @@
 import numpy as np
+import warnings
 from scipy.integrate import quad, dblquad
 from scipy.stats import hypsecant
 from scipy.stats import norm
 
 
+warnings.simplefilter('once', UserWarning)
 
 epsabs = 1e-2
 epsrel = 1e-2
@@ -31,6 +33,9 @@ def qmap(qin, weight_sigma=1.0 , bias_sigma=0.0, nonlinearity=np.tanh,
     return weight_sigma**2 * integral + bias_sigma**2
 
 def compute_chi1(qstar, weight_sigma=1.0, bias_sigma=0.01, dphi=np.tanh):
+    if qstar is None:
+        return None
+
     def integrand(z):
         return norm.pdf(z) * dphi(np.sqrt(qstar) * z)**2
     integral = quad(integrand, zmin, zmax, epsabs=epsabs, epsrel=epsrel)[0]
@@ -61,7 +66,8 @@ def covmap(q1, q2, q12, weight_sigma, bias_sigma, nonlinearity=np.tanh, zmin=-10
     integral = fast_integral(integrand, zmin, zmax, dz, ndim=2)
     return weight_sigma**2 * integral + bias_sigma**2
 
-def q_fixed_point(weight_sigma, bias_sigma, nonlinearity, max_iter=500, tol=1e-9, qinit=3.0, fast=True, tol_frac=0.01):
+def q_fixed_point(weight_sigma, bias_sigma, nonlinearity, max_iter=500, tol=1e-9, qinit=3.0, fast=True, \
+        tol_frac=0.01, tol_overflow = 1e50):
     """Compute fixed point of q map"""
     q = qinit
     qs = []
@@ -71,8 +77,15 @@ def q_fixed_point(weight_sigma, bias_sigma, nonlinearity, max_iter=500, tol=1e-9
         qs.append(q)
         if err < tol:
             break
+        if qnew > tol_overflow:
+            return None, None
         q = qnew
     # Find first time it gets within tol_frac fracitonal error of q*
     frac_err = (np.array(qs) - q)**2 / (1e-9 + q**2)
-    t = np.flatnonzero(frac_err < tol_frac)[0]
+    lst_t = np.flatnonzero(frac_err < tol_frac)
+    if len(lst_t) == 0:
+        warnings.warn("Warning: q_star = {:.4e}.".format(q[0]))
+        t = None
+    else:
+        t = lst_t[0]
     return t, q
